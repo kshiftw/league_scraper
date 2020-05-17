@@ -4,6 +4,7 @@ from selenium import webdriver
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 import re
+import time
 
 # https://howpcrules.com/step-by-step-guide-on-scraping-data-from-a-website-and-saving-it-to-a-database/
 
@@ -12,22 +13,53 @@ def browser_driver():
     chrome_options = Options()
     chrome_options.add_argument('--ignore-certificate-errors')
     chrome_options.add_argument('--incognito')
-    chrome_options.add_argument('--headless')
+    # chrome_options.add_argument('--headless')
     driver = Chrome("C:/Users/Kirk/PycharmProjects/league_scraper/chromedriver_win32/chromedriver.exe", options=chrome_options)
     return driver
 
 
-def access_page(driver):
-    url = "https://universe.leagueoflegends.com/en_US/story/perennial/"
+def get_urls(driver):
+    main_page = "https://universe.leagueoflegends.com/en_US/explore/short-stories/newest/"
 
-    driver.get(url)
-    all_p = driver.find_elements_by_xpath("//p[@class='p_1_sJ']")
+    url_set = set()
 
-    page_source = driver.page_source
-    return page_source
+    driver.get(main_page)
 
-    # for p in all_p:
-    #     print(len(p.get_attribute("innerHTML")))
+    # https://stackoverflow.com/questions/20986631/how-can-i-scroll-a-web-page-using-selenium-webdriver-in-python
+    SCROLL_PAUSE_TIME = 1.0
+
+    # Get scroll height
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    current_height = 0
+    driver.execute_script("window.scrollTo(0, 0);")
+
+    while True:
+        # Scroll down to bottom
+        driver.execute_script("window.scrollTo(0, window.scrollY + 1000)")
+        current_height += 1000
+
+        # Wait to load page
+        time.sleep(SCROLL_PAUSE_TIME)
+
+        page_source = driver.page_source
+        soup = BeautifulSoup(page_source, 'html.parser')
+        code_soup = soup.find_all('li', attrs={'class': 'Card_CCcI Result_2bn_'})
+        for div in code_soup:
+            a_tag = div.find("a", recursive=False, href=True)
+            url_set.add(a_tag['href'])
+        if current_height >= last_height:
+            break
+    return url_set
+
+
+def access_page(driver, url_set):
+    base_url = "https://universe.leagueoflegends.com"
+    for page in url_set:
+        url = base_url + page
+        driver.get(url)
+        page_source = driver.page_source
+        extract_data(page_source)
 
 
 def extract_data(page_source):
@@ -39,7 +71,7 @@ def extract_data(page_source):
     append = False
 
     for elem in code_soup:
-        # use get_text() to remove <i> tags
+        # use elem.get_text() to remove all html tags (ie. <i>)
         if not append:
             if len(elem.get_text()) < 300:
                 add_paragraph += " "
@@ -61,6 +93,7 @@ def extract_data(page_source):
 
 
 def correct_period(s):
+    # https://stackoverflow.com/questions/29506718/having-trouble-adding-a-space-after-a-period-in-a-python-string/29507362
     # r' + ' searches for multiple spaces to replace with single spaces in s
     # re.sub(r'\.(?! )', '. ', looks for periods without following space character to replace with '. '
     return re.sub(r'\.(?! )', '. ', re.sub(r' +', ' ', s))
@@ -68,8 +101,8 @@ def correct_period(s):
 
 def main():
     driver = browser_driver()
-    page_source = access_page(driver)
-    extract_data(page_source)
+    url_set = get_urls(driver)
+    access_page(driver, url_set)
 
 
 if __name__ == "__main__":
