@@ -5,6 +5,7 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 import re
 import time
+import csv
 
 # https://howpcrules.com/step-by-step-guide-on-scraping-data-from-a-website-and-saving-it-to-a-database/
 
@@ -59,18 +60,28 @@ def access_page(driver, url_set):
         url = base_url + page
         driver.get(url)
         page_source = driver.page_source
-        extract_data(page_source)
+        extract_data(page_source, url)
+
+    # driver.get("https://universe.leagueoflegends.com/en_US/story/star-guardian-starfall/")
+    # page_source = driver.page_source
+    # extract_data(page_source, 'url')
 
 
-def extract_data(page_source):
+def extract_data(page_source, url):
     soup = BeautifulSoup(page_source, 'html.parser')
-    code_soup = soup.find_all('p', attrs={'class': 'p_1_sJ'})
+    if soup.find('h1', attrs={'class': 'title_121J'}):
+        title = soup.find('h1', attrs={'class': 'title_121J'}).get_text()
+    else:
+        title = ""
+    if soup.find_all('p', attrs={'class': 'p_1_sJ'}):
+        p_soup = soup.find_all('p', attrs={'class': 'p_1_sJ'})
+    else:
+        return
 
     add_paragraph = ""
     paragraph_list = []
     append = False
-
-    for elem in code_soup:
+    for elem in p_soup:
         # use elem.get_text() to remove all html tags (ie. <i>)
         if not append:
             if len(elem.get_text()) < 300:
@@ -88,8 +99,17 @@ def extract_data(page_source):
     for index, para in enumerate(paragraph_list):
         paragraph_list[index] = para.strip()
         paragraph_list[index] = correct_period(para)
+
+    row_list = []
     for para in paragraph_list:
-        print(len(para), para)
+        row_list.append([url, title, para])
+    write_csv(row_list)
+
+
+def write_csv(row_list):
+    with open('excerpts.csv', 'a', newline="", encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerows(row_list)
 
 
 def correct_period(s):
@@ -103,6 +123,9 @@ def main():
     driver = browser_driver()
     url_set = get_urls(driver)
     access_page(driver, url_set)
+
+    # driver = browser_driver()
+    # access_page(driver, {"test"})
 
 
 if __name__ == "__main__":
