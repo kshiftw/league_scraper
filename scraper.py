@@ -1,3 +1,10 @@
+"""
+Kirk Wong
+
+This module uses Selenium and BeautifulSoup to navigate the League of Legends universe page
+https://universe.leagueoflegends.com/en_US/explore/short-stories/newest/ to extract excerpts from all short stories.
+After the data is extracted and cleaned up, it is written into a csv file.
+"""
 from bs4 import BeautifulSoup
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
