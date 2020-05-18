@@ -9,6 +9,7 @@ import csv
 def browser_driver():
     """ Configure the browser driver that will access the urls.
 
+    :precondition: Chrome Driver must be installed and the path is on hand https://sites.google.com/a/chromium.org/chromedriver/downloads
     :return: the driver to be used
     """
     chrome_options = Options()
