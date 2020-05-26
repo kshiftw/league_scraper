@@ -11,6 +11,7 @@ from selenium.webdriver.chrome.options import Options
 import re
 import time
 import csv
+from pymongo import MongoClient
 
 
 def browser_driver():
@@ -105,6 +106,14 @@ def extract_data(page_source, url):
         # if it doesn't exist (a couple pages did not follow the same format)
         title = ""
 
+    # get the author of the short story
+    if soup.find('h2', attrs={'class': 'subtitle_XESa'}):
+        author = soup.find('h2', attrs={'class': 'subtitle_XESa'}).get_text()
+        author = remove_by(author)
+    else:
+        # if it doesn't exist (a couple pages did not follow the same format)
+        author = ""
+
     # get all paragraphs in the short story
     if soup.find_all('p', attrs={'class': 'p_1_sJ'}):
         p_soup = soup.find_all('p', attrs={'class': 'p_1_sJ'})
@@ -124,7 +133,6 @@ def extract_data(page_source, url):
         # use elem.get_text() to remove all html tags (ie. <i>)
         if not append:
             if len(elem.get_text()) < 300:
-                add_paragraph += " "
                 add_paragraph += elem.get_text()
                 append = True
             else:
@@ -132,6 +140,7 @@ def extract_data(page_source, url):
                 paragraph_list.append(elem.get_text())
         else:
             # if there is already something in add_paragraph, append the current paragraph to it
+            add_paragraph += " "
             add_paragraph += elem.get_text()
             if len(add_paragraph) > 300:
                 append = False
@@ -140,13 +149,43 @@ def extract_data(page_source, url):
     # cleaning up the formatting
     for index, para in enumerate(paragraph_list):
         paragraph_list[index] = para.strip()
-        paragraph_list[index] = correct_period(para)
+        paragraph_list[index] = format_string(para)
 
     row_list = []
     # create a list of rows that will be inserted into the csv file
     for para in paragraph_list:
-        row_list.append([url, title, para])
-    write_csv(row_list)
+        row = {
+            'url': url,
+            'title': title,
+            'author': author,
+            'excerpt': para
+            }
+        row_list.append(row)
+    insert_db(row_list)
+
+
+def format_string(s):
+    """ Replaces a special character … with a single period.
+
+    :param s: the string to format
+    :return: the formatted string
+    """
+    result = re.sub(r'\…', '.', s)
+    return result
+
+
+def remove_by(s):
+    if s[0:2].lower() == "by":
+        return s[3:]
+    else:
+        return s
+
+
+def insert_db(row_list):
+    client = MongoClient(port=27017)
+    db = client['type-']
+    for row in row_list:
+        db.excerpts.insert_one(row)
 
 
 def write_csv(row_list):
@@ -160,17 +199,13 @@ def write_csv(row_list):
         writer.writerows(row_list)
 
 
-def correct_period(s):
-    # https://stackoverflow.com/questions/29506718/having-trouble-adding-a-space-after-a-period-in-a-python-string/29507362
-    # r' + ' searches for multiple spaces to replace with single spaces in s
-    # re.sub(r'\.(?! )', '. ', looks for periods without following space character to replace with '. '
-    return re.sub(r'\.(?! )', '. ', re.sub(r' +', ' ', s))
-
-
 def main():
     driver = browser_driver()
     url_set = get_urls(driver)
     access_page(driver, url_set)
+
+    # to test single page
+    # access_page(driver, {'/en_US/story/ahri-color/'})
 
 
 if __name__ == "__main__":
