@@ -3,7 +3,7 @@ Kirk Wong
 
 This module uses Selenium and BeautifulSoup to navigate the League of Legends universe page
 https://universe.leagueoflegends.com/en_US/explore/short-stories/newest/ to extract excerpts from all short stories.
-After the data is extracted and cleaned up, it is written into a csv file.
+After the data is extracted and cleaned up, it is written into as documents in MongoDB.
 """
 from bs4 import BeautifulSoup
 from selenium.webdriver import Chrome
@@ -182,14 +182,20 @@ def remove_by(s):
 
 
 def insert_db(row_list):
+    """ Inserts rows as documents into MongoDB.
+
+    :param row_list: a list of documents to be inserted
+    """
     client = MongoClient(port=27017)
+    # Database name is "type-"
     db = client['type-']
     for row in row_list:
+        # Database Collection name is "excerpts"
         db.excerpts.insert_one(row)
 
 
 def write_csv(row_list):
-    """ Writes all data in row_list into a csv file
+    """ NO LONGER USED. Writes all data in row_list into a csv file
 
     :param row_list: list containing rows to be inserted into the csv file
     """
