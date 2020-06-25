@@ -33,8 +33,16 @@ def get_urls(driver):
     url_set = set()
     driver.get(main_page)
 
+    # find ol element
+    # get all li elements under ol element
+    # get href from a tag
+    # book_number =  number after second / in href
+    # https://www.gutenberg.org/files/1342/1342-h/1342-h.htm
+    # url = "https://www.gutenberg.org/files/" + book_number + "/" + book_number + "-h/" + book_number + "-h.htm"
+    # url_set.add(url)
+
     for _ in range(100):
-        
+
 
     return url_set
 
@@ -62,6 +70,19 @@ def extract_data(page_source, url):
     soup = BeautifulSoup(page_source, 'html.parser')
 
     # get the title of the short story
+
+    # get first <pre> element
+    # find "Title: " and "Author: "
+    # or
+    # find first <h1> and first <h2>
+
+    # find all <p>
+    # if 300 < length < 500, add to database
+
+    # remove underscore
+
+
+
     if soup.find('h1', attrs={'class': 'title_121J'}):
         title = soup.find('h1', attrs={'class': 'title_121J'}).get_text()
     else:
@@ -119,28 +140,12 @@ def extract_data(page_source, url):
             'url': url,
             'title': title,
             'author': author,
-            'excerpt': para
+            'excerpt': para,
+            'category': "gutenberg",
+            'leaderboard': [],
             }
         row_list.append(row)
     insert_db(row_list)
-
-
-def get_text_file(filepath):
-    url = ''
-    title = ''
-    author = ''
-    excerpt = ''
-    category = ''
-    leaderboard = []
-
-    # remove underscore
-    # 300 < length < 550
-
-    with open(filepath, 'r') as document:
-        for line in document:
-            print(line)
-
-def get_urls():
 
 
 def insert_db(row_list):
