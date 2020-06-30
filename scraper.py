@@ -152,7 +152,7 @@ def extract_data(page_source, url):
         paragraph_list[index] = format_string(para)
 
     row_list = []
-    # create a list of rows that will be inserted into the csv file
+    # create a list of rows that will be inserted into the database
     for para in paragraph_list:
         row = {
             'url': url,

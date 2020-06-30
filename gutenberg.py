@@ -1,6 +1,9 @@
 """
-https://www.gutenberg.org/wiki/Gutenberg:The_CD_and_DVD_Project#Downloading_Via_FTP
-https://www.gutenberg.org/browse/scores/top#books-last1
+Kirk Wong
+
+This module uses Selenium and BeautifulSoup to retrieve the top 100 Ebooks from Project Gutenberg
+https://www.gutenberg.org/browse/scores/top and extract excerpts from the ebooks. After the data is extracted and
+cleaned up, it is written into as documents in MongoDB.
 """
 from pymongo import MongoClient
 from bs4 import BeautifulSoup
@@ -36,17 +39,21 @@ def get_urls(driver):
     page_source = driver.page_source
     soup = BeautifulSoup(page_source, 'html.parser')
 
+    # Find the first ol element, which is the "Top 100 EBooks yesterday" category
     if soup.find('ol'):
         ol_soup = soup.find('ol')
+
+        # Gets all 100 elements
         li_soup = ol_soup.findChildren('li', recursive=False)
+
+        # For each li element, get the book number and generate the direct link to the book
         for li in li_soup:
             a_tag = li.find("a", recursive=False, href=True)
             href = a_tag['href']
             book_number = href.split('/')[-1]
             url = "https://www.gutenberg.org/files/" + book_number + "/" + book_number + "-h/" + book_number + "-h.htm"
             url_set.add(url)
-    print(url_set)
-    # return url_set
+    return url_set
 
 
 def access_page(driver, url_set):
@@ -71,72 +78,41 @@ def extract_data(page_source, url):
     """
     soup = BeautifulSoup(page_source, 'html.parser')
 
-    # get the title of the short story
-
-    # get first <pre> element
-    # find "Title: " and "Author: "
-    # or
-    # find first <h1> and first <h2>
-
-    # find all <p>
-    # if 300 < length < 500, add to database
-
-    # remove underscore
-
-
-
-    if soup.find('h1', attrs={'class': 'title_121J'}):
-        title = soup.find('h1', attrs={'class': 'title_121J'}).get_text()
+    # Get the title
+    if soup.find('h1'):
+        title = soup.find('h1').get_text().strip()
     else:
-        # if it doesn't exist (a couple pages did not follow the same format)
+        # if it doesn't exist
         title = ""
 
-    # get the author of the short story
-    if soup.find('h2', attrs={'class': 'subtitle_XESa'}):
-        author = soup.find('h2', attrs={'class': 'subtitle_XESa'}).get_text()
+    # Get the author
+    if soup.find('h2'):
+        author = soup.find('h2').get_text().strip()
         author = remove_by(author)
     else:
-        # if it doesn't exist (a couple pages did not follow the same format)
+        # if it doesn't exist
         author = ""
 
-    # get all paragraphs in the short story
-    if soup.find_all('p', attrs={'class': 'p_1_sJ'}):
-        p_soup = soup.find_all('p', attrs={'class': 'p_1_sJ'})
+    # Get all paragraphs
+    if soup.find_all('p'):
+        p_soup = soup.find_all('p')
     else:
-        # if no <p> with the class are found (a couple pages did not follow the same format), then don't bother
-        # extracting the page
+        # if no <p> with the class are found, then don't bother extracting the page
         return
 
-    add_paragraph = ""
     paragraph_list = []
-    append = False
 
-    # for each paragraph, check that it isn't too short (if < 300 characters)
-    # if it is too short, save it so that it can be appended to the next paragraph in the list
-    # use append variable to keep track of if there is a paragraph from the previous loop to append
     for elem in p_soup:
         # use elem.get_text() to remove all html tags (ie. <i>)
-        if not append:
-            if len(elem.get_text()) < 300:
-                add_paragraph += elem.get_text()
-                append = True
-            else:
-                # if it is long enough, append it to the paragraph_list
-                paragraph_list.append(elem.get_text())
-        else:
-            # if there is already something in add_paragraph, append the current paragraph to it
-            add_paragraph += " "
-            add_paragraph += elem.get_text()
-            if len(add_paragraph) > 300:
-                append = False
-                paragraph_list.append(add_paragraph)
-                add_paragraph = ""
+        # Only get paragraphs within a certain length range
+        if 300 < len(elem.get_text()) < 500:
+            paragraph_list.append(elem.get_text().replace('\n', ' ').replace('       ', ' '))
     # cleaning up the formatting
     for index, para in enumerate(paragraph_list):
         paragraph_list[index] = para.strip()
 
     row_list = []
-    # create a list of rows that will be inserted into the csv file
+    # create a list of rows that will be inserted into the database
     for para in paragraph_list:
         row = {
             'url': url,
@@ -148,6 +124,13 @@ def extract_data(page_source, url):
             }
         row_list.append(row)
     insert_db(row_list)
+
+
+def remove_by(s):
+    if s[0:2].lower() == "by":
+        return s[3:]
+    else:
+        return s
 
 
 def insert_db(row_list):
@@ -166,7 +149,10 @@ def insert_db(row_list):
 def main():
     driver = browser_driver()
     url_set = get_urls(driver)
-    # access_page(driver, url_set)
+    access_page(driver, url_set)
+
+    # test access to single page
+    # access_page(driver, {'https://www.gutenberg.org/files/972/972-h/972-h.htm'})
 
 
 if __name__ == "__main__":
