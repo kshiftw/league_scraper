@@ -33,18 +33,20 @@ def get_urls(driver):
     url_set = set()
     driver.get(main_page)
 
-    # find ol element
-    # get all li elements under ol element
-    # get href from a tag
-    # book_number =  number after second / in href
-    # https://www.gutenberg.org/files/1342/1342-h/1342-h.htm
-    # url = "https://www.gutenberg.org/files/" + book_number + "/" + book_number + "-h/" + book_number + "-h.htm"
-    # url_set.add(url)
+    page_source = driver.page_source
+    soup = BeautifulSoup(page_source, 'html.parser')
 
-    for _ in range(100):
-
-
-    return url_set
+    if soup.find('ol'):
+        ol_soup = soup.find('ol')
+        li_soup = ol_soup.findChildren('li', recursive=False)
+        for li in li_soup:
+            a_tag = li.find("a", recursive=False, href=True)
+            href = a_tag['href']
+            book_number = href.split('/')[-1]
+            url = "https://www.gutenberg.org/files/" + book_number + "/" + book_number + "-h/" + book_number + "-h.htm"
+            url_set.add(url)
+    print(url_set)
+    # return url_set
 
 
 def access_page(driver, url_set):
@@ -164,7 +166,7 @@ def insert_db(row_list):
 def main():
     driver = browser_driver()
     url_set = get_urls(driver)
-    access_page(driver, url_set)
+    # access_page(driver, url_set)
 
 
 if __name__ == "__main__":
